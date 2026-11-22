@@ -7,7 +7,7 @@
     <string name="updates_auto">Проверять при открытии приложения</string>
     <string name="updates_available">Обновление %1$s · Открыть на GitHub</string>
     <string name="updates_checking">Проверяем обновления…</string>
-    <string name="updates_current">Установлена актуальная версия</string>
+    <string name="updates_current">Установлена актуальная версия %1$s</string>
     <string name="updates_failed">Не удалось проверить обновления на GitHub</string>
     <string name="updates_open_failed">Не удалось открыть страницу релиза</string>
 </resources>

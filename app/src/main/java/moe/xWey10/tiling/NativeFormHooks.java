@@ -4,12 +4,10 @@ import android.graphics.Canvas;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.WeakHashMap;
 
 /** Shapes clip the existing View; its controller, listeners, ripple and content remain native. */
 @android.annotation.SuppressLint({"PrivateApi","DiscouragedApi"}) // Firmware-specific OEM hooks/resources, verified against the supplied DEX.
@@ -20,20 +18,6 @@ final class NativeFormHooks {
     private static final String TRANSFORMER="com.android.launcher3.util.ItemInfoTransformer";
     private static final String LAUNCHER="com.android.launcher3.Launcher";
     private static final ThreadLocal<MotionEvent[]> mappedTouches=new ThreadLocal<>();
-    private static final class TilePress {
-        final float x, y;
-        boolean rootPress, moved;
-
-        TilePress(MotionEvent down) {
-            x = down.getRawX();
-            y = down.getRawY();
-        }
-
-        boolean pastSlop(MotionEvent event, int slop) {
-            float dx = event.getRawX() - x, dy = event.getRawY() - y;
-            return dx * dx + dy * dy > (float) slop * slop;
-        }
-    }
     private static Class<?> attemptedView;
     private static long attemptedAt;
     record Types(Class<?> tile,Class<?> bluetooth,Class<?> transformer,Class<?> launcher) { }
@@ -174,48 +158,21 @@ final class NativeFormHooks {
                 Integer save=(Integer)p.getObjectExtra("nqsFormCanvas"); if(save!=null) ((Canvas)p.args[0]).restoreToCount(save);
             }
         },Canvas.class);
-        WeakHashMap<View, TilePress> presses = new WeakHashMap<>();
         hook(android.view.ViewGroup.class,"dispatchTouchEvent",new XC_MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
-                if (!tile.isInstance(p.thisObject)) return;
+                if (!tile.isInstance(p.thisObject) || !NativeForms.hasCuts()) return;
                 View view = (View) p.thisObject;
                 MotionEvent event = (MotionEvent) p.args[0];
-                int action = event.getActionMasked();
-                QsLayout.Item item = NativeForms.hasCuts() ? NativeForms.item(view) : null;
-
-                if (action == MotionEvent.ACTION_DOWN) {
-                    presses.remove(view);
-                    if (item != null && !TileLayers.contains(NativeLayerClip.visible(view, item),
-                            event.getX(), event.getY())) {
-                        p.setResult(false);
-                        return;
-                    }
-                    presses.put(view, new TilePress(event));
-                } else {
-                    TilePress press = presses.get(view);
-                    if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                        presses.remove(view);
-                    }
-                    if (press != null && press.rootPress && press.moved) {
-                        // The parent pager still receives the real swipe. The tile has finished.
-                        p.setResult(true);
-                        return;
-                    }
-                    if (press != null && !press.moved && crossedTouchSlop(view, event, press)) {
-                        press.moved = true;
-                        if (press.rootPress) {
-                            // The native root still considers the finger inside a large tile.
-                            MotionEvent cancel = MotionEvent.obtain(event);
-                            cancel.setAction(MotionEvent.ACTION_CANCEL);
-                            replaceTouch(p, event, cancel, false);
-                            return;
-                        }
-                        // Embedded controls such as the Bluetooth pager need the real MOVE.
-                        view.cancelPendingInputEvents();
-                    }
+                // Let the stock pager cancel its child when it takes over the gesture.
+                if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) return;
+                QsLayout.Item item = NativeForms.item(view);
+                if (item == null) return;
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                        && !TileLayers.contains(NativeLayerClip.visible(view, item), event.getX(), event.getY())) {
+                    p.setResult(false);
+                    return;
                 }
-
-                if (item == null || !item.form().transformed()) return;
+                if (!item.form().transformed()) return;
                 float[] pitch = NativeFormContent.drawingPitch(view, item.w(), item.h());
                 android.graphics.Matrix inverse = new android.graphics.Matrix();
                 TileRotation.content(item.form(), new RectF(0, 0, view.getWidth(), view.getHeight()),
@@ -223,7 +180,7 @@ final class NativeFormHooks {
                         view.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL).invert(inverse);
                 MotionEvent mapped = MotionEvent.obtain(event);
                 mapped.transform(inverse);
-                replaceTouch(p, event, mapped, true);
+                replaceTouch(p, event, mapped);
             }
 
             @Override protected void afterHookedMethod(MethodHookParam p) {
@@ -235,22 +192,14 @@ final class NativeFormHooks {
                     else mappedTouches.set(previous);
                     copy.recycle();
                 }
-                if (tile.isInstance(p.thisObject)
-                        && ((MotionEvent) p.args[0]).getActionMasked() == MotionEvent.ACTION_DOWN
-                        && !Boolean.TRUE.equals(p.getResult())) {
-                    presses.remove((View) p.thisObject);
-                }
             }
         },MotionEvent.class);
         hook(View.class,"onTouchEvent",new XC_MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!tile.isInstance(p.thisObject)) return;
-                TilePress press = presses.get((View) p.thisObject);
-                if (press != null && ((MotionEvent) p.args[0]).getActionMasked() == MotionEvent.ACTION_DOWN) {
-                    press.rootPress = true;
-                }
                 MotionEvent[] touch = mappedTouches.get();
-                if (touch == null) return;
+                if (touch == null || p.args[0] != touch[0]
+                        || touch[0].getAction() != touch[1].getAction()) return;
                 p.setObjectExtra("nqsRootTouch", p.args[0]);
                 p.args[0] = touch[1];
             }
@@ -276,21 +225,13 @@ final class NativeFormHooks {
             }
         },int.class,java.util.List.class);
     }
-    private static boolean crossedTouchSlop(View view, MotionEvent event, TilePress press) {
-        int action = event.getActionMasked();
-        if (action == MotionEvent.ACTION_POINTER_DOWN) return true;
-        if (action != MotionEvent.ACTION_MOVE && action != MotionEvent.ACTION_UP) return false;
-        return press.pastSlop(event, ViewConfiguration.get(view.getContext()).getScaledTouchSlop());
-    }
-
     private static void replaceTouch(XC_MethodHook.MethodHookParam call, MotionEvent original,
-            MotionEvent copy, boolean rotated) {
+            MotionEvent copy) {
         call.args[0] = copy;
         call.setObjectExtra("nqsTouchCopy", copy);
         call.setObjectExtra("nqsOriginalTouch", original);
         call.setObjectExtra("nqsPreviousTouch", mappedTouches.get());
-        if (rotated) mappedTouches.set(new MotionEvent[]{copy, original});
-        else mappedTouches.remove();
+        mappedTouches.set(new MotionEvent[]{copy, original});
     }
 
     static float radius(View v) {

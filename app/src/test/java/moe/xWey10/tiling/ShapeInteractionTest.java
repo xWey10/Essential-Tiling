@@ -98,35 +98,45 @@ public class ShapeInteractionTest {
         for (TileForm form : new TileForm[]{TileForm.RECT, TileForm.diagonal(false, false)}) {
             try (var controller = Robolectric.buildActivity(android.app.Activity.class).setup()) {
                 QSTileViewImpl tile = nativeTile("swipe", form, 3, 3, Color.RED);
-                controller.get().setContentView(tile, new ViewGroup.LayoutParams(288, 288));
-                measure(tile, 288, 288);
+                int slop = ViewConfiguration.get(tile.getContext()).getScaledTouchSlop();
+                FrameLayout pager = new FrameLayout(controller.get()) {
+                    float startX;
+                    @Override public boolean onInterceptTouchEvent(MotionEvent event) {
+                        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) startX = event.getX();
+                        return event.getActionMasked() == MotionEvent.ACTION_MOVE
+                                && Math.abs(event.getX() - startX) > slop;
+                    }
+                };
+                pager.setClickable(true);
+                pager.addView(tile, new FrameLayout.LayoutParams(288, 288));
+                controller.get().setContentView(pager);
+                measure(pager, 288, 288);
                 var main = shadowOf(Looper.getMainLooper());
                 int[] clicks = {0}, holds = {0};
                 tile.setOnClickListener(v -> clicks[0]++);
                 tile.setOnLongClickListener(v -> { holds[0]++; return true; });
-                int slop = ViewConfiguration.get(tile.getContext()).getScaledTouchSlop();
                 long hold = ViewConfiguration.getLongPressTimeout() + ViewConfiguration.getTapTimeout() + 10L;
 
                 long down = android.os.SystemClock.uptimeMillis();
-                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
-                sendTileTouch(tile, down, MotionEvent.ACTION_MOVE, 144 + slop + 4);
+                sendTileTouch(pager, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(pager, down, MotionEvent.ACTION_MOVE, 144 + slop + 4);
                 main.idleFor(Duration.ofMillis(hold));
-                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144 + slop + 4);
+                sendTileTouch(pager, down, MotionEvent.ACTION_UP, 144 + slop + 4);
                 main.idle();
                 assertEquals(0, holds[0]);
                 assertEquals(0, clicks[0]);
 
                 down = android.os.SystemClock.uptimeMillis();
-                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
-                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144);
+                sendTileTouch(pager, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(pager, down, MotionEvent.ACTION_UP, 144);
                 main.idleFor(Duration.ofMillis(hold));
                 assertEquals(1, clicks[0]);
                 assertEquals(0, holds[0]);
 
                 down = android.os.SystemClock.uptimeMillis();
-                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(pager, down, MotionEvent.ACTION_DOWN, 144);
                 main.idleFor(Duration.ofMillis(hold));
-                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144);
+                sendTileTouch(pager, down, MotionEvent.ACTION_UP, 144);
                 main.idle();
                 assertEquals(1, holds[0]);
                 assertEquals(1, clicks[0]);
@@ -149,7 +159,7 @@ public class ShapeInteractionTest {
         }
     }
 
-    private static void sendTileTouch(QSTileViewImpl tile, long down, int action, float x) {
+    private static void sendTileTouch(View tile, long down, int action, float x) {
         MotionEvent event = MotionEvent.obtain(down, android.os.SystemClock.uptimeMillis(),
                 action, x, 144, 0);
         try {

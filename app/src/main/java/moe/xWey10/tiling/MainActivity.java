@@ -794,7 +794,9 @@ public final class MainActivity extends AppCompatActivity {
 
     if (updates.isChecking()) updateStatus.setText(R.string.updates_checking);
     else if (updates.hasManualFailure()) updateStatus.setText(R.string.updates_failed);
-    else if (tag == null && updates.hasChecked()) updateStatus.setText(R.string.updates_current);
+    else if (tag == null && updates.hasChecked()) {
+      updateStatus.setText(getString(R.string.updates_current, BuildConfig.VERSION_NAME));
+    }
     else updateStatus.setText("");
     updateStatus.setVisibility(updateStatus.length() == 0 ? View.GONE : View.VISIBLE);
   }
