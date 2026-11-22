@@ -18,6 +18,7 @@ import org.json.JSONObject;
 /** Checks stable releases while the settings app is open. State is shared across recreations. */
 final class GitHubUpdates {
   private static final String REPOSITORY = "xWey10/Essential-Tiling";
+  static final String RELEASES_URL = "https://github.com/" + REPOSITORY + "/releases/latest";
   private static final String LATEST = "https://api.github.com/repos/" + REPOSITORY + "/releases/latest";
   private static final long DAY = TimeUnit.DAYS.toMillis(1);
   private static final long HOUR = TimeUnit.HOURS.toMillis(1);
@@ -113,10 +114,6 @@ final class GitHubUpdates {
 
   static boolean due(long now, long last, long delay) {
     return last <= 0 || now < last || now - last >= delay;
-  }
-
-  static String releaseUrl(String tag) {
-    return "https://github.com/" + REPOSITORY + "/releases/tags/" + tag;
   }
 
   static boolean isNewer(String candidate, String installed) {

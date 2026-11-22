@@ -800,9 +800,8 @@ public final class MainActivity extends AppCompatActivity {
   }
 
   private void openUpdateRelease() {
-    String tag = updates.availableTag();
-    if (tag == null) return;
-    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(GitHubUpdates.releaseUrl(tag)));
+    if (updates.availableTag() == null) return;
+    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(GitHubUpdates.RELEASES_URL));
     intent.addCategory(Intent.CATEGORY_BROWSABLE);
     try {
       startActivity(intent);
