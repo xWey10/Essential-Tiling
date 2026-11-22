@@ -1,10 +1,13 @@
 package moe.xWey10.tiling;
 
 import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +19,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -40,6 +44,10 @@ public final class MainActivity extends AppCompatActivity {
   private Button undo, redo;
   private boolean bindingAngle, trackingAngle;
   private ProfileSheet profileSheet;
+  private GitHubUpdates updates;
+  private Button checkUpdates, openRelease, homeUpdate;
+  private TextView updateStatus;
+  private final Runnable refreshUpdates = this::refreshUpdateControls;
   private boolean restoredDraft;
   private String pendingExport = "";
   private String pendingTileInspection;
@@ -126,6 +134,7 @@ public final class MainActivity extends AppCompatActivity {
     super.onCreate(state);
     palette = new ThemePalette(this);
     ui = new SettingsUi(this);
+    updates = GitHubUpdates.get(this);
     layoutClient = new LayoutClient(this);
     tileClient = new TileClient(this);
     getWindow().setDecorFitsSystemWindows(false);
@@ -422,6 +431,10 @@ public final class MainActivity extends AppCompatActivity {
     enabled.setBackground(ui.surface(palette.container, 28));
     enabled.setTextColor(palette.onContainer);
     panel.addView(enabled, new LinearLayout.LayoutParams(-1, -2));
+    homeUpdate = ui.button("", false);
+    homeUpdate.setVisibility(View.GONE);
+    homeUpdate.setOnClickListener(v -> openUpdateRelease());
+    panel.addView(homeUpdate, layout(8));
     panel.addView(ui.section("Настройки"));
     LinearLayout group = ui.group();
     group.addView(
@@ -750,6 +763,52 @@ public final class MainActivity extends AppCompatActivity {
     content.addView(ui.section("Версия"));
     content.addView(text(getString(R.string.app_name) + " " + BuildConfig.VERSION_NAME, 16));
     content.addView(text("Nothing SystemUI 16 · Android 16", 14), layout(8));
+    content.addView(ui.section(getString(R.string.updates_heading)));
+    openRelease = button("");
+    openRelease.setVisibility(View.GONE);
+    openRelease.setOnClickListener(v -> openUpdateRelease());
+    checkUpdates = button(getString(R.string.updates_check));
+    checkUpdates.setOnClickListener(v -> updates.check(true));
+    updateStatus = text("", 14);
+    updateStatus.setVisibility(View.GONE);
+    updateStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    content.addView(updateStatus, layout(8));
+    MaterialSwitch automatic = new MaterialSwitch(this);
+    automatic.setText(R.string.updates_auto);
+    automatic.setMinHeight(dp(48));
+    automatic.setChecked(updates.isAutomatic());
+    automatic.setOnCheckedChangeListener((button, enabled) -> updates.setAutomatic(enabled));
+    content.addView(automatic, layout(8));
+  }
+
+  private void refreshUpdateControls() {
+    String tag = updates.availableTag();
+    openRelease.setVisibility(tag == null ? View.GONE : View.VISIBLE);
+    homeUpdate.setVisibility(openRelease.getVisibility());
+    if (tag != null) {
+      String label = getString(R.string.updates_available, tag);
+      openRelease.setText(label);
+      homeUpdate.setText(label);
+    }
+    checkUpdates.setEnabled(!updates.isChecking());
+
+    if (updates.isChecking()) updateStatus.setText(R.string.updates_checking);
+    else if (updates.hasManualFailure()) updateStatus.setText(R.string.updates_failed);
+    else if (tag == null && updates.hasChecked()) updateStatus.setText(R.string.updates_current);
+    else updateStatus.setText("");
+    updateStatus.setVisibility(updateStatus.length() == 0 ? View.GONE : View.VISIBLE);
+  }
+
+  private void openUpdateRelease() {
+    String tag = updates.availableTag();
+    if (tag == null) return;
+    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(GitHubUpdates.releaseUrl(tag)));
+    intent.addCategory(Intent.CATEGORY_BROWSABLE);
+    try {
+      startActivity(intent);
+    } catch (ActivityNotFoundException e) {
+      Toast.makeText(this, R.string.updates_open_failed, Toast.LENGTH_SHORT).show();
+    }
   }
 
   private void inspectTile(QsLayout.Item item) {
@@ -1433,6 +1492,8 @@ public final class MainActivity extends AppCompatActivity {
   @Override
   protected void onResume() {
     super.onResume();
+    updates.observe(refreshUpdates);
+    updates.check(false);
     updatePreview();
     handler.post(refresh);
     previewClient.start();
@@ -1440,6 +1501,7 @@ public final class MainActivity extends AppCompatActivity {
 
   @Override
   protected void onPause() {
+    updates.forget(refreshUpdates);
     if (controlsReady) DraftStore.write(this, draft(0), layoutDraft);
     preview.endEdit();
     trackingControl = false;

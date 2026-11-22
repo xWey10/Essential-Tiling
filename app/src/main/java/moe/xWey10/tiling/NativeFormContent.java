@@ -84,7 +84,7 @@ final class NativeFormContent {
     static Box box(View view,QsLayout.Item item,int width,int height) {
         if(!item.form().cut()) return null;
         float[] pitch=pitch(view,item.w(),item.h(),width,height);
-        RectF area=item.form().content(new RectF(0,0,width,height),item.w(),item.h(),pitch[0],pitch[1]);
+        RectF area=TileContentSize.body(item.form(),new RectF(0,0,width,height),item.w(),item.h(),pitch[0],pitch[1]);
         if(view.getLayoutDirection()==View.LAYOUT_DIRECTION_RTL) area.set(width-area.right,area.top,width-area.left,area.bottom);
         float angle=TileRotation.baseAngle(item.form(),new RectF(0,0,width,height),item.w(),item.h(),pitch[0],pitch[1]);
         if(view.getLayoutDirection()==View.LAYOUT_DIRECTION_RTL) angle=-angle;

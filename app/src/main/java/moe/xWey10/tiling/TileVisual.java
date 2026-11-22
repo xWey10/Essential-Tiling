@@ -31,7 +31,7 @@ final class TileVisual {
     private float pitchX(RectF b) { return (b.width()+insetX)/formW; }
     private float pitchY(RectF b) { return (b.height()+insetY)/formH; }
     private RectF body(TileImage image) {
-        return image.form.content(new RectF(0,0,image.width,image.height),image.w,image.h,(image.width+insetX)/image.w,(image.height+insetY)/image.h);
+        return TileContentSize.body(image.form,new RectF(0,0,image.width,image.height),image.w,image.h,(image.width+insetX)/image.w,(image.height+insetY)/image.h);
     }
     private java.util.List<RectF> branch;
     private RectF branchBody;
@@ -151,7 +151,7 @@ final class TileVisual {
                 contentBounds=new RectF(0,0,layer.image.width,layer.image.height);
             } else if(shape.transformed()||layer.image.form.transformed()) {
                 TileImage source=layer.image; RectF previous=body(source);
-                RectF area=shape.content(b,formW,formH,pitchX(b),pitchY(b));
+                RectF area=TileContentSize.body(shape,b,formW,formH,pitchX(b),pitchY(b));
                 if(rtl) { area.set(b.left+b.right-area.right,area.top,b.left+b.right-area.left,area.bottom); previous.set(source.width-previous.right,previous.top,source.width-previous.left,previous.bottom); }
                 canvas.concat(TileRotation.content(shape,b,formW,formH,pitchX(b),pitchY(b),rtl));
                 alignContent(canvas,area,previous,source);

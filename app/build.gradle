@@ -8,8 +8,8 @@ android {
         applicationId 'moe.xWey10.tiling'
         minSdk 33
         targetSdk 35
-        versionCode 27
-        versionName '0.12.1'
+        versionCode 30
+        versionName '0.12.4'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

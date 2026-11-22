@@ -67,6 +67,72 @@ public class DiagonalShapeTest {
         NativeForms.draft.set(java.util.Map.of("t:shape",new QsLayout.Item("t:shape","",8,0,0,3,3,true,true)));
         measure(tile,288,288); assertEquals(0,icon.getRotation(),.01f);
     }
+    @Test public void aSavedDiagonalUsesTheNativeWideLabelWidthAfterReload() throws Exception {
+        NativeFormHooksTest.install();
+        var context = RuntimeEnvironment.getApplication();
+        var parent = new NativeRootViewportTest.Cells(context);
+        var tile = new NativeContentSizeTest.SizeAwareTile(context);
+        parent.addView(tile);
+        var tag = new com.android.launcher3.QSTileItemInfo("diagonal_label");
+        tag.spanX = tag.spanY = 3;
+        tile.setTag(tag);
+        tile.setPadding(12, 0, 12, 0);
+        tile.addView(new View(context), new LinearLayout.LayoutParams(20, 20));
+        var label = new android.widget.TextView(context);
+        label.setSingleLine();
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        label.setText("A long native label that needs ellipsizing");
+        tile.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+        var diagonal = new QsLayout.Item("t:diagonal_label", "", 8, 0, 0, 3, 3, true, true,
+                TileForm.diagonal(true, false));
+        NativeForms.user(context, 0);
+        NativeForms.save(context, 0, QsLayoutTest.source(diagonal));
+        NativeForms.user(context, 1);
+        NativeForms.user(context, 0);
+        tile.applySize(3, 3);
+        measure(tile, 288, 288);
+
+        assertEquals(1, tile.mSize);
+        assertEquals(188 - 24 - 20, label.getWidth());
+        assertEquals(288, tile.getWidth());
+    }
+
+    @Test public void aRenderedDiagonalKeepsItsSpriteWhenFocusedVariantsArriveOrLeave() throws Exception {
+        try (var fixture = new GridGestureTest.Fixture()) {
+            var tile = new QsLayout.Item("t:bt", "", 8, 0, 0, 2, 2, true, true,
+                    TileForm.diagonal(false, false));
+            var model = QsLayoutTest.source(tile);
+            var frame = new android.os.Bundle(fixture.frame.metadata);
+            int baseHeight = frame.getInt("baseHeight");
+            var atlas = Bitmap.createBitmap(400, baseHeight + 400, Bitmap.Config.ARGB_8888);
+            try {
+                frame.putString("layout", model.json());
+                frame.putString("regions", new org.json.JSONArray().put(new org.json.JSONObject()
+                        .put("id", tile.id()).put("sx", 0).put("sy", baseHeight)
+                        .put("sw", 188).put("sh", 188).put("left", 8).put("top", 8)
+                        .put("right", 196).put("bottom", 196)).toString());
+                var variant = new org.json.JSONObject().put("id", tile.id()).put("w", 2).put("h", 1)
+                        .put("image", imageRegion(0, baseHeight + 188))
+                        .put("background", imageRegion(188, baseHeight + 188));
+                String focused = new org.json.JSONArray().put(variant).toString();
+                for (String variants : new String[]{"[]", focused, "[]"}) {
+                    frame.putString("variants", variants);
+                    fixture.view.setFrame(atlas, frame);
+                    TileImage image = RetractionRotationTest.visual(fixture.view).image();
+                    assertEquals(tile.form(), image.form);
+                    assertEquals(baseHeight, image.source.top);
+                }
+            } finally {
+                fixture.view.setFrame(null);
+                atlas.recycle();
+            }
+        }
+    }
+
+    private static org.json.JSONArray imageRegion(int x, int y) {
+        return new org.json.JSONArray().put(x).put(y).put(188).put(88);
+    }
+
     @Test public void arrowButtonsCreateBothDiagonalsAndTheEndHandleFollowsTheFinger() throws Exception {
         try(GridGestureTest.Fixture f=new GridGestureTest.Fixture()) {
             f.touch(MotionEvent.ACTION_DOWN,50,50); f.touch(MotionEvent.ACTION_UP,50,50);

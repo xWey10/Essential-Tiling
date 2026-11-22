@@ -93,6 +93,73 @@ public class ShapeInteractionTest {
         shadowOf(Looper.getMainLooper()).idle(); assertEquals(11,clicks[0]);
         }
     }
+    @Test public void swipingInsideATileCancelsItsPressWithoutBreakingTapOrHold() throws Exception {
+        NativeFormHooksTest.install();
+        for (TileForm form : new TileForm[]{TileForm.RECT, TileForm.diagonal(false, false)}) {
+            try (var controller = Robolectric.buildActivity(android.app.Activity.class).setup()) {
+                QSTileViewImpl tile = nativeTile("swipe", form, 3, 3, Color.RED);
+                controller.get().setContentView(tile, new ViewGroup.LayoutParams(288, 288));
+                measure(tile, 288, 288);
+                var main = shadowOf(Looper.getMainLooper());
+                int[] clicks = {0}, holds = {0};
+                tile.setOnClickListener(v -> clicks[0]++);
+                tile.setOnLongClickListener(v -> { holds[0]++; return true; });
+                int slop = ViewConfiguration.get(tile.getContext()).getScaledTouchSlop();
+                long hold = ViewConfiguration.getLongPressTimeout() + ViewConfiguration.getTapTimeout() + 10L;
+
+                long down = android.os.SystemClock.uptimeMillis();
+                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(tile, down, MotionEvent.ACTION_MOVE, 144 + slop + 4);
+                main.idleFor(Duration.ofMillis(hold));
+                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144 + slop + 4);
+                main.idle();
+                assertEquals(0, holds[0]);
+                assertEquals(0, clicks[0]);
+
+                down = android.os.SystemClock.uptimeMillis();
+                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144);
+                main.idleFor(Duration.ofMillis(hold));
+                assertEquals(1, clicks[0]);
+                assertEquals(0, holds[0]);
+
+                down = android.os.SystemClock.uptimeMillis();
+                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
+                main.idleFor(Duration.ofMillis(hold));
+                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144);
+                main.idle();
+                assertEquals(1, holds[0]);
+                assertEquals(1, clicks[0]);
+
+                View gestureChild = new View(tile.getContext());
+                var actions = new java.util.ArrayList<Integer>();
+                gestureChild.setOnTouchListener((v, event) -> {
+                    actions.add(event.getActionMasked());
+                    return true;
+                });
+                tile.addView(gestureChild, new LinearLayout.LayoutParams(88, 60));
+                measure(tile, 288, 288);
+                down = android.os.SystemClock.uptimeMillis();
+                sendTileTouch(tile, down, MotionEvent.ACTION_DOWN, 144);
+                sendTileTouch(tile, down, MotionEvent.ACTION_MOVE, 144 + slop + 4);
+                sendTileTouch(tile, down, MotionEvent.ACTION_UP, 144 + slop + 4);
+                assertEquals(java.util.List.of(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE,
+                        MotionEvent.ACTION_UP), actions);
+            }
+        }
+    }
+
+    private static void sendTileTouch(QSTileViewImpl tile, long down, int action, float x) {
+        MotionEvent event = MotionEvent.obtain(down, android.os.SystemClock.uptimeMillis(),
+                action, x, 144, 0);
+        try {
+            tile.dispatchTouchEvent(event);
+            assertEquals(action, event.getActionMasked());
+        } finally {
+            event.recycle();
+        }
+    }
+
     @Test public void layersKeepTheLowerLineOutOfTheUpperSilhouetteAndHitTheChosenTopTile() throws Exception {
         NativeFormHooksTest.install(); FrameLayout parent=new FrameLayout(RuntimeEnvironment.getApplication());
         TileForm down=TileForm.diagonal(false,false).layered(1),up=TileForm.diagonal(true,false).layered(2);

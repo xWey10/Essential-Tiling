@@ -233,7 +233,11 @@ public final class PreviewView extends View {
             boolean active = dragging && sprite.id.equals(selected);
             QsLayout.Item target = active && proposed != null ? proposed : shown.item(sprite.id);
             TileImage image = images.get(key(active&&branchHandle!=null?anchor:target));
-            if(target.form().cut()&&image!=null&&(!image.form.equals(target.form())||target.form().transformed())) {
+            // A captured diagonal already has its native content positioned and rotated.
+            // Flat endpoints are for changing its geometry, not for replacing its resting image.
+            boolean capturedDiagonal = target.form().diagonal() && image != null
+                    && target.form().equals(image.form) && target.w() == image.w && target.h() == image.h;
+            if(target.form().cut()&&image!=null&&!capturedDiagonal&&(!image.form.equals(target.form())||target.form().transformed())) {
                 TileContentSize body=TileContentSize.of(target);
                 TileImage bodyImage=images.get(key(target.id(),body.width(),body.height())+"#flat");
                 if(bodyImage!=null) image=bodyImage;

@@ -13,6 +13,17 @@ record TileContentSize(int width, int height) {
     return of(body.width(), body.height(), item.tall());
   }
 
+  static RectF body(TileForm form, RectF frame, int w, int h, float pitchX, float pitchY) {
+    RectF area = form.content(frame, w, h, pitchX, pitchY);
+    if (form.diagonal()) {
+      // A capsule can be much longer than the native horizontal layout it contains.
+      float gap = Math.max(0, w * pitchX - frame.width());
+      float nativeWidth = Math.max(1, 2 * pitchX - gap);
+      if (area.width() > nativeWidth) area.inset((area.width() - nativeWidth) / 2, 0);
+    }
+    return area;
+  }
+
   static TileContentSize of(float width, float height, boolean tall) {
     if (width < 1.5f) return new TileContentSize(1, 1);
     return new TileContentSize(2, tall && height >= 1.5f ? 2 : 1);

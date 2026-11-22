@@ -2,4 +2,12 @@
     <string name="app_name" translatable="false">Essential Tiling</string>
     <string name="module_description">Редактор плиток штатной шторки Nothing OS</string>
     <string name="profile_default_name">Вариант %1$d</string>
+    <string name="updates_heading">Обновления</string>
+    <string name="updates_check">Проверить обновления</string>
+    <string name="updates_auto">Проверять при открытии приложения</string>
+    <string name="updates_available">Обновление %1$s · Открыть на GitHub</string>
+    <string name="updates_checking">Проверяем обновления…</string>
+    <string name="updates_current">Установлена актуальная версия</string>
+    <string name="updates_failed">Не удалось проверить обновления на GitHub</string>
+    <string name="updates_open_failed">Не удалось открыть страницу релиза</string>
 </resources>
