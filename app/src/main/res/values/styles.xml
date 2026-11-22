@@ -1,0 +1,31 @@
+<resources>
+    <style name="Theme.EssentialTiling" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="materialButtonStyle">@style/Widget.EssentialTiling.Button</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="colorPrimary">@color/settings_accent</item>
+        <item name="colorOnPrimary">@color/settings_on_accent</item>
+        <item name="colorPrimaryContainer">@color/settings_accent_container</item>
+        <item name="colorOnPrimaryContainer">@color/settings_on_accent_container</item>
+        <item name="colorSurface">@color/settings_background</item>
+        <item name="colorSurfaceContainer">@color/settings_surface</item>
+        <item name="colorSurfaceContainerLow">@color/settings_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/settings_surface_high</item>
+        <item name="colorOnSurface">@color/settings_text</item>
+        <item name="colorOnSurfaceVariant">@color/settings_secondary</item>
+        <item name="colorOutline">@color/settings_outline</item>
+        <item name="colorOutlineVariant">@color/settings_outline</item>
+        <item name="android:colorBackground">@color/settings_background</item>
+        <item name="android:windowBackground">@color/settings_background</item>
+        <item name="android:colorAccent">@color/settings_accent</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+    <style name="Widget.EssentialTiling.Button" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+</resources>

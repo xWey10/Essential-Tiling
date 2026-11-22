@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name" translatable="false">Essential Tiling</string>
+    <string name="module_description">Редактор плиток штатной шторки Nothing OS</string>
+    <string name="profile_default_name">Вариант %1$d</string>
+</resources>
